@@ -15,4 +15,7 @@ def make(*args):
     parser.add_argument("--discount_rate", default=0.75, type=float, help="")
     parser.add_argument("--selection_mode", default="epsilon_greedy", type=str, help="")
 
+    #intervention
+    parser.add_argument("--social_graph", default="none", type=str, help="")
+
     return parser.parse_args(args)

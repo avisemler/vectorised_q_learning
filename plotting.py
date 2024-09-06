@@ -9,9 +9,29 @@ AGENT_TYPES = 3
 action_names = ["car", "bus", "walk"]
 COLOURS = ["blue", "red", "orange", "green", "purple"]
 
-def plot(opts, result, show=False, title="Plot"):
-    #plt.plot(result.sum(axis=-2))
-    #plt.savefig("output.png", bbox_inches="tight")
+def mean_and_std(l):
+    """
+    Computes mean and standard deviation for a list l of numpy
+    arrays that is potentially too large to store in memory as a single stacked 
+    array all at once.
+    """
+    sum = np.zeros_like(l[0])
+    for arr in l:
+        sum += arr
+    mean = sum / len(l)
+
+    squared_deviations = []
+    for arr in l:
+        squared_deviations.append(np.square(mean - arr))
+    sum_squared_deviations = np.zeros_like(l[0])
+    for arr in squared_deviations:
+        sum_squared_deviations += arr
+
+    return mean, np.sqrt(sum_squared_deviations / len(l))
+
+def plot(opts, results, show=False, title="Plot"):
+    #compute mean and standard deviation over each run
+    mean, std = mean_and_std(results)
 
     #plot the action counts for each agent type and summed over the types
     dimension = math.ceil(math.sqrt(AGENT_TYPES + 1))
@@ -25,7 +45,7 @@ def plot(opts, result, show=False, title="Plot"):
             x_coord = plot_count // dimension
             y_coord = plot_count % dimension
             axis[x_coord, y_coord].plot(np.arange(opts.timesteps),
-                result[:,1000*agent_type:1000*(agent_type + 1),j].sum(axis=-1),
+                mean[:,1000*agent_type:1000*(agent_type + 1),j].sum(axis=-1),
                 label=action_names[j],
                 color=COLOURS[j],
                 lw=str(LINE_WIDTH)
@@ -54,7 +74,7 @@ def plot(opts, result, show=False, title="Plot"):
         x_coord = plot_count // dimension
         y_coord = plot_count % dimension
         axis[x_coord, y_coord].plot(np.arange(opts.timesteps),
-            result[:,:,j].sum(axis=-1),
+            mean[:,:,j].sum(axis=-1),
             label=action_names[j],
             color=COLOURS[j],
             lw=str(LINE_WIDTH)

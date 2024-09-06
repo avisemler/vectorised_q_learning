@@ -1,5 +1,6 @@
 *.png
-
+*.sbatch 
+*.out
 __pycache__/
 results/
 plots/

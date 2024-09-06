@@ -7,6 +7,7 @@ import utils
 import plotting
 import make_opts
 
+torch.set_default_dtype(torch.float16)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def reward_function(opts, actions, value_functions, sensitivities, costs):
@@ -74,7 +75,7 @@ def run_simulation(opts):
     return result
 
 if __name__ == "__main__":
-    import sys
+    import sys, os
 
     start_time = time.time()
 
@@ -83,7 +84,12 @@ if __name__ == "__main__":
     for i in range(opts.n_iterations):
         print(f"~~Iteration {i}~~")
         results.append(run_simulation(opts).cpu().numpy())
-    stacked = np.stack(results)
-    plotting.plot(opts, stacked.mean(axis=0), show=True)
 
+    #save results in folder
+    output_dir = os.path.join("results", f"output_{opts.social_graph}")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    for i, arr in enumerate(results):
+        np.save(os.path.join(output_dir, f"{i}.npy"), arr)
     print("took time:", time.time() - start_time)
