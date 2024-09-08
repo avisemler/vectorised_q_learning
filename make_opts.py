@@ -16,6 +16,8 @@ def make(*args):
     parser.add_argument("--selection_mode", default="epsilon_greedy", type=str, help="")
 
     #intervention
+    parser.add_argument("--intervention_start", default=None, type=int, help="")
     parser.add_argument("--social_graph", default="none", type=str, help="")
+    parser.add_argument("--graph_connectivity", default="low", type=str, help="")
 
     return parser.parse_args(args)

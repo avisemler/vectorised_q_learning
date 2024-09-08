@@ -7,13 +7,13 @@ LABEL_SIZE = 9
 LINE_WIDTH = 1.0
 AGENT_TYPES = 3
 action_names = ["car", "bus", "walk"]
-COLOURS = ["blue", "red", "orange", "green", "purple"]
+COLOURS = ["blue", "red", "green", "green", "purple"]
 
 def mean_and_std(l):
     """
     Computes mean and standard deviation for a list l of numpy
     arrays that is potentially too large to store in memory as a single stacked 
-    array all at once.
+    array.
     """
     sum = np.zeros_like(l[0])
     for arr in l:
@@ -29,7 +29,7 @@ def mean_and_std(l):
 
     return mean, np.sqrt(sum_squared_deviations / len(l))
 
-def plot(opts, results, show=False, title="Plot"):
+def plot(opts, results, show=False, title=""):
     #compute mean and standard deviation over each run
     mean, std = mean_and_std(results)
 
@@ -44,11 +44,19 @@ def plot(opts, results, show=False, title="Plot"):
             #plot a line for the ith action
             x_coord = plot_count // dimension
             y_coord = plot_count % dimension
+            plot_line = mean[:,1000*agent_type:1000*(agent_type + 1),j].sum(axis=-1)
+            band_width = std[:,1000*agent_type:1000*(agent_type + 1),j].sum(axis=-1)
             axis[x_coord, y_coord].plot(np.arange(opts.timesteps),
-                mean[:,1000*agent_type:1000*(agent_type + 1),j].sum(axis=-1),
+                plot_line,
                 label=action_names[j],
                 color=COLOURS[j],
                 lw=str(LINE_WIDTH)
+            )
+            axis[x_coord, y_coord].fill_between(np.arange(opts.timesteps),
+                plot_line - band_width/2,
+                plot_line + band_width/2,
+                facecolor=COLOURS[j],
+                alpha=0.2,
             )
             axis[x_coord, y_coord].grid(axis='y')
             axis[x_coord, y_coord].set_title("Group " + str(agent_type + 1) + " " + title)
@@ -73,11 +81,19 @@ def plot(opts, results, show=False, title="Plot"):
     for j in range(opts.n_actions):
         x_coord = plot_count // dimension
         y_coord = plot_count % dimension
+        plot_line = mean[:,:,j].sum(axis=-1)
+        band_width = std[:,:,j].sum(axis=-1)
         axis[x_coord, y_coord].plot(np.arange(opts.timesteps),
-            mean[:,:,j].sum(axis=-1),
+            plot_line,
             label=action_names[j],
             color=COLOURS[j],
             lw=str(LINE_WIDTH)
+        )
+        axis[x_coord, y_coord].fill_between(np.arange(opts.timesteps),
+            plot_line - band_width/2,
+            plot_line + band_width/2,
+            facecolor=COLOURS[j],
+            alpha=0.2,
         )
         axis[x_coord, y_coord].grid(axis='y')
         axis[x_coord, y_coord].set_title("Full population " + title)

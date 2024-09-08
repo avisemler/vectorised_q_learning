@@ -2,12 +2,13 @@ import time
 
 import torch
 import numpy as np
+import networkx as nx
 
 import utils
 import plotting
 import make_opts
 
-torch.set_default_dtype(torch.float16)
+torch.set_default_dtype(torch.float32)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def reward_function(opts, actions, value_functions, sensitivities, costs):
@@ -36,7 +37,13 @@ def run_simulation(opts):
     costs[2000:3000] = torch.tensor([-0.2,0,0])
     value_functions = [utils.RightTailGaussianFunc(0.0, 1, 0.4), utils.RightTailGaussianFunc(0.4, 1.14, 0.35), lambda x: 1]
 
-    social_matrix = torch.eye(opts.n_agents, opts.n_agents).to(device)
+    #generate social graph
+    if opts.social_graph == "er" and opts.graph_connectivity == "low":
+        graph = nx.erdos_renyi_graph(opts.n_agents, 0.00133377792)
+        social_matrix = torch.eye(opts.n_agents, opts.n_agents).to(device)
+        social_matrix += torch.from_numpy(nx.adjacency_matrix(graph, weight=0.1)).to(device)
+    else:
+        social_matrix = torch.eye(opts.n_agents, opts.n_agents).to(device)
 
     result = torch.zeros(opts.timesteps, opts.n_agents, opts.n_actions).to(device)
     for step in range(opts.timesteps):
@@ -72,6 +79,11 @@ def run_simulation(opts):
         #store actions in result
         result[step] = actions_one_hot
 
+        if step == opts.intervention_start:
+            #perform an intervention
+            costs[:,0] += 0.2 #tax cars
+            sensitivities[2000:,2] += 0.4 #incentivise walking among those who walk least
+
     return result
 
 if __name__ == "__main__":
@@ -84,6 +96,8 @@ if __name__ == "__main__":
     for i in range(opts.n_iterations):
         print(f"~~Iteration {i}~~")
         results.append(run_simulation(opts).cpu().numpy())
+
+    plotting.plot(opts, results)
 
     #save results in folder
     output_dir = os.path.join("results", f"output_{opts.social_graph}")
