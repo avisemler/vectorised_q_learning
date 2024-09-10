@@ -1,4 +1,5 @@
 import math
+import os
 
 import matplotlib.pyplot as plt 
 import numpy as np
@@ -29,7 +30,7 @@ def mean_and_std(l):
 
     return mean, np.sqrt(sum_squared_deviations / len(l))
 
-def plot(opts, results, show=False, title=""):
+def plot(dir, opts, results, show=False, title=""):
     #compute mean and standard deviation over each run
     mean, std = mean_and_std(results)
 
@@ -116,4 +117,4 @@ def plot(opts, results, show=False, title=""):
     handles, labels = fig.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
     fig.legend(by_label.values(), by_label.keys(), loc="upper right")
-    plt.savefig("output.png", dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(dir, "visualised.png"), dpi=300, bbox_inches="tight")

@@ -37,11 +37,31 @@ def run_simulation(opts):
     costs[2000:3000] = torch.tensor([-0.2,0,0])
     value_functions = [utils.RightTailGaussianFunc(0.0, 1, 0.4), utils.RightTailGaussianFunc(0.4, 1.14, 0.35), lambda x: 1]
 
+    #record original values of agent parameters so that interventions can be removed
+    original_costs, original_sensitivities = costs.clone(), sensitivities.clone()
+
+    #to record social influence, if any
+    influence = torch.zeros_like(sensitivities)
+
     #generate social graph
     if opts.social_graph == "er" and opts.graph_connectivity == "low":
         graph = nx.erdos_renyi_graph(opts.n_agents, 0.00133377792)
-        social_matrix = torch.eye(opts.n_agents, opts.n_agents).to(device)
-        social_matrix += torch.from_numpy(nx.adjacency_matrix(graph, weight=0.1)).to(device)
+        social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
+    elif opts.social_graph == "er" and opts.graph_connectivity == "high":
+        graph = nx.erdos_renyi_graph(opts.n_agents, 0.0053351117)
+        social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
+    elif opts.social_graph == "ws" and opts.graph_connectivity == "low":
+        graph = nx.watts_strogatz_graph(opts.n_agents, 5, 0.1)
+        social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
+    elif opts.social_graph == "ws" and opts.graph_connectivity == "high":
+        graph = nx.watts_strogatz_graph(opts.n_agents, 17, 0.1)
+        social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
+    elif opts.social_graph == "ba" and opts.graph_connectivity == "low":
+        graph = nx.barabasi_albert_graph(opts.n_agents, 2)
+        social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
+    elif opts.social_graph == "ba" and opts.graph_connectivity == "high":
+        graph = nx.barabasi_albert_graph(opts.n_agents, 8)
+        social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
     else:
         social_matrix = torch.eye(opts.n_agents, opts.n_agents).to(device)
 
@@ -69,13 +89,15 @@ def run_simulation(opts):
         actions_one_hot = torch.nn.functional.one_hot(actions, num_classes=opts.n_actions)
 
         #calcuate reward of actions
-        rewards = reward_function(opts, actions_one_hot, value_functions, sensitivities, costs)
+        rewards = reward_function(opts, actions_one_hot, value_functions, sensitivities, costs-influence)
 
         #update Q values
         q_values[actions_one_hot>0] = (1-opts.update_rate) * q_values[actions_one_hot>0] + opts.update_rate * (rewards + opts.discount_rate * torch.max(q_values, dim=-1)[0])
         
-        #take into account social graph
-        q_values = social_matrix @ q_values
+        if opts.social_graph != "none":
+            #take into account social graph
+            influence = 0.1 * social_matrix.float() @ actions_one_hot.float() / social_matrix.sum(dim=-1, keepdim=True)
+            
         #store actions in result
         result[step] = actions_one_hot
 
@@ -83,6 +105,11 @@ def run_simulation(opts):
             #perform an intervention
             costs[:,0] += 0.2 #tax cars
             sensitivities[2000:,2] += 0.4 #incentivise walking among those who walk least
+
+        if step == opts.intervention_end:
+            #remove the intervention
+            costs = original_costs
+            sensitivities = original_sensitivities
 
     return result
 
@@ -97,12 +124,18 @@ if __name__ == "__main__":
         print(f"~~Iteration {i}~~")
         results.append(run_simulation(opts).cpu().numpy())
 
-    plotting.plot(opts, results)
-
     #save results in folder
-    output_dir = os.path.join("results", f"output_{opts.social_graph}")
+    if opts.intervention_start is None:
+        intervention_type = ""
+    elif opts.intervention_start is not None and opts.intervention_end is None:
+        intervention_type = "_late"
+    elif opts.intervention_start is not None and opts.intervention_end is not None:
+        intervention_type = "_temp"
+    output_dir = os.path.join("results", f"output_{opts.social_graph}{intervention_type}")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    plotting.plot(output_dir, opts, results)
 
     for i, arr in enumerate(results):
         np.save(os.path.join(output_dir, f"{i}.npy"), arr)
