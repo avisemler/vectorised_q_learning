@@ -1,5 +1,4 @@
 import argparse
-import ast
 
 def make(*args):
     parser = argparse.ArgumentParser()
@@ -20,5 +19,8 @@ def make(*args):
     parser.add_argument("--intervention_end", default=None, type=int, help="")
     parser.add_argument("--social_graph", default="none", type=str, help="")
     parser.add_argument("--graph_connectivity", default="low", type=str, help="")
+
+    #files
+    parser.add_argument("--output_dir", default="/dcs/large/u2107995/res", type=str, help="")
 
     return parser.parse_args(args)

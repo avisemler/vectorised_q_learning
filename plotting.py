@@ -1,5 +1,7 @@
 import math
 import os
+import json
+from types import SimpleNamespace
 
 import matplotlib.pyplot as plt 
 import numpy as np
@@ -30,7 +32,7 @@ def mean_and_std(l):
 
     return mean, np.sqrt(sum_squared_deviations / len(l))
 
-def plot(dir, opts, results, show=False, title=""):
+def plot(opts, results=None, show=False, title=""):
     #compute mean and standard deviation over each run
     mean, std = mean_and_std(results)
 
@@ -117,4 +119,21 @@ def plot(dir, opts, results, show=False, title=""):
     handles, labels = fig.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
     fig.legend(by_label.values(), by_label.keys(), loc="upper right")
-    plt.savefig(os.path.join(dir, "visualised.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(opts.run_name, dpi=300, bbox_inches="tight")
+
+if __name__ == "__main__":
+    import glob
+
+    directories_to_plot = glob.glob("/dcs/large/u2107995/res/*/")
+    for d in directories_to_plot:
+
+        #load options
+        with open(os.path.join(d, "opts.json"), "r") as f:
+            opts = json.load(f, object_hook=lambda d: SimpleNamespace(**d))
+
+            #load results
+            results = []
+            for np_file in glob.glob(os.path.join(d, "*.npy")):
+                results.append(np.load(np_file, allow_pickle=True).astype(np.float32))
+
+            plot(opts, results)

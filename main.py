@@ -1,4 +1,5 @@
 import time
+import json
 
 import torch
 import numpy as np
@@ -96,7 +97,7 @@ def run_simulation(opts):
         
         if opts.social_graph != "none":
             #take into account social graph
-            influence = 0.1 * social_matrix.float() @ actions_one_hot.float() / social_matrix.sum(dim=-1, keepdim=True)
+            influence = 0.4 * social_matrix.float() @ actions_one_hot.float() / social_matrix.sum(dim=-1, keepdim=True)
             
         #store actions in result
         result[step] = actions_one_hot
@@ -115,14 +116,8 @@ def run_simulation(opts):
 
 if __name__ == "__main__":
     import sys, os
-
-    start_time = time.time()
-
+    
     opts = make_opts.make(*sys.argv[1:])
-    results = []
-    for i in range(opts.n_iterations):
-        print(f"~~Iteration {i}~~")
-        results.append(run_simulation(opts).cpu().numpy())
 
     #save results in folder
     if opts.intervention_start is None:
@@ -131,12 +126,25 @@ if __name__ == "__main__":
         intervention_type = "_late"
     elif opts.intervention_start is not None and opts.intervention_end is not None:
         intervention_type = "_temp"
-    output_dir = os.path.join("results", f"output_{opts.social_graph}{intervention_type}")
+
+    output_dir = os.path.join(opts.output_dir, f"output_{opts.social_graph}{intervention_type}")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+    opts.run_name = f"viz_{opts.social_graph}{intervention_type}.png"
+    
+    print("\n\n~Starting~:", opts.run_name)
+    start_time = time.time()
 
-    plotting.plot(output_dir, opts, results)
+    results = []
+    for i in range(opts.n_iterations):
+        print(f"{i}")
+        results.append(run_simulation(opts).cpu().numpy())
 
+    #plotting.plot(opts, results)
     for i, arr in enumerate(results):
-        np.save(os.path.join(output_dir, f"{i}.npy"), arr)
-    print("took time:", time.time() - start_time)
+        np.save(os.path.join(output_dir, f"{i}.npy"), arr.astype(bool))
+
+    with open(os.path.join(output_dir, "opts.json"), "w") as f:
+        json.dump(opts.__dict__, f)
+
+    print("\nTook time:", time.time() - start_time)
