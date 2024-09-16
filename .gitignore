@@ -2,6 +2,7 @@
 *.sbatch 
 *.out
 *.err
+*.txt
 
 __pycache__/
 results/

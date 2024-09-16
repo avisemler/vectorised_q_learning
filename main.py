@@ -127,10 +127,11 @@ if __name__ == "__main__":
     elif opts.intervention_start is not None and opts.intervention_end is not None:
         intervention_type = "_temp"
 
-    output_dir = os.path.join(opts.output_dir, f"output_{opts.social_graph}{intervention_type}")
+    opts.run_name = f"{opts.social_graph}_{opts.graph_connectivity}{intervention_type}"
+
+    output_dir = os.path.join(opts.output_dir, f"output_{opts.run_name}")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    opts.run_name = f"viz_{opts.social_graph}{intervention_type}.png"
     
     print("\n\n~Starting~:", opts.run_name)
     start_time = time.time()

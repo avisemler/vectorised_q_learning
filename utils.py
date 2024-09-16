@@ -24,11 +24,15 @@ class RightTailGaussianFunc:
 if __name__ == "__main__":
     #visualise value functions
     import matplotlib.pyplot as plt
-    COLOURS = ["blue", "red", "orange", "green", "purple"]
+    COLOURS = ["blue", "red", "green"]
+    NAMES = ["Car", "Bus", "Walk"]
 
     value_functions = [RightTailGaussianFunc(0.0, 1, 0.4), RightTailGaussianFunc(0.4, 1.14, 0.35), lambda x: 1]
     for i,f in enumerate(value_functions):
         x = np.linspace(0,1,100)
         y = [f(j) for j in x]
-        plt.plot(x, y, color=COLOURS[i])
+        plt.plot(x, y, color=COLOURS[i], label=NAMES[i])
+    plt.xlabel("ω: fraction of agents selecting the action")
+    plt.ylabel("V(ω): value of the action")
+    plt.legend()
     plt.savefig("value_functions.png")
