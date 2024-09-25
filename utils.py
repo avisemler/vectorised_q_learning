@@ -36,3 +36,14 @@ if __name__ == "__main__":
     plt.ylabel("V(ω): value of the action")
     plt.legend()
     plt.savefig("value_functions.png")
+    plt.close()
+
+    utility_functions = [lambda x: gaussian_density(x, 0, 0.45), lambda x: gaussian_density(x, 0.3, 0.32), lambda x: 1.2]
+    for i,f in enumerate(utility_functions):
+        x = np.linspace(0,1,100)
+        y = [f(j) for j in x]
+        plt.plot(x, y, color=COLOURS[i], label=NAMES[i])
+    plt.xlabel("ω: fraction of agents selecting the action")
+    plt.ylabel("Authority utility of action")
+    plt.legend()
+    plt.savefig("authority_utils_functions.png")

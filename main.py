@@ -51,11 +51,17 @@ def run_simulation(opts):
     elif opts.social_graph == "er" and opts.graph_connectivity == "high":
         graph = nx.erdos_renyi_graph(opts.n_agents, 0.0053351117)
         social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
+    elif opts.social_graph == "er" and opts.graph_connectivity == "ultra":
+        graph = nx.erdos_renyi_graph(opts.n_agents, 0.01000333444)
+        social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
     elif opts.social_graph == "ws" and opts.graph_connectivity == "low":
         graph = nx.watts_strogatz_graph(opts.n_agents, 5, 0.1)
         social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
     elif opts.social_graph == "ws" and opts.graph_connectivity == "high":
         graph = nx.watts_strogatz_graph(opts.n_agents, 17, 0.1)
+        social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
+    elif opts.social_graph == "ws" and opts.graph_connectivity == "ultra":
+        graph = nx.watts_strogatz_graph(opts.n_agents, 30, 0.1)
         social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
     elif opts.social_graph == "ba" and opts.graph_connectivity == "low":
         graph = nx.barabasi_albert_graph(opts.n_agents, 2)
@@ -63,8 +69,21 @@ def run_simulation(opts):
     elif opts.social_graph == "ba" and opts.graph_connectivity == "high":
         graph = nx.barabasi_albert_graph(opts.n_agents, 8)
         social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
+    elif opts.social_graph == "ba" and opts.graph_connectivity == "ultra":
+        graph = nx.barabasi_albert_graph(opts.n_agents, 15)
+        social_matrix = torch.from_numpy(nx.adjacency_matrix(graph).toarray()).to(device)
     else:
         social_matrix = torch.eye(opts.n_agents, opts.n_agents).to(device)
+
+    #randomly permute the rows of the social matrix so that the groups don't matter
+    permutation = torch.randperm(opts.n_agents)
+    social_matrix = social_matrix[permutation, :][:, permutation]
+    #modify the social matrix so that it is weighted
+    social_matrix = social_matrix.float()
+    social_matrix *= 0.5
+    social_matrix[:1000, :1000] *= 2
+    social_matrix[1000:2000, 1000:2000] *= 2
+    social_matrix[2000:3000, 2000:3000] *= 2
 
     result = torch.zeros(opts.timesteps, opts.n_agents, opts.n_actions).to(device)
     for step in range(opts.timesteps):
@@ -97,15 +116,19 @@ def run_simulation(opts):
         
         if opts.social_graph != "none":
             #take into account social graph
-            influence = 0.4 * social_matrix.float() @ actions_one_hot.float() / social_matrix.sum(dim=-1, keepdim=True)
+            influence = social_matrix @ actions_one_hot.float() / social_matrix.sum(dim=-1, keepdim=True)
             
         #store actions in result
         result[step] = actions_one_hot
 
         if step == opts.intervention_start:
             #perform an intervention
-            costs[:,0] += 0.2 #tax cars
-            sensitivities[2000:,2] += 0.4 #incentivise walking among those who walk least
+            if opts.intervention_type == "car":
+                costs[:,0] += 0.4 #tax cars
+            elif opts.intervention_type == "walk":
+                sensitivities[2000:,2] += 0.6 #incentivise walking among those who walk least
+            elif opts.intervention_type == "bus":
+                costs[:,2] -= 0.1 #incentivise walking among those who walk least
 
         if step == opts.intervention_end:
             #remove the intervention
@@ -123,11 +146,16 @@ if __name__ == "__main__":
     if opts.intervention_start is None:
         intervention_type = ""
     elif opts.intervention_start is not None and opts.intervention_end is None:
-        intervention_type = "_late"
+        intervention_type = "_late"+opts.intervention_type
     elif opts.intervention_start is not None and opts.intervention_end is not None:
-        intervention_type = "_temp"
+        intervention_type = "_temp"+opts.intervention_type
 
-    opts.run_name = f"{opts.social_graph}_{opts.graph_connectivity}{intervention_type}"
+    if opts.social_graph == "none":
+        social_graph_type = "none"
+    else:
+        social_graph_type = f"{opts.social_graph}_{opts.graph_connectivity}"
+
+    opts.run_name = f"{social_graph_type}{intervention_type}"
 
     output_dir = os.path.join(opts.output_dir, f"output_{opts.run_name}")
     if not os.path.exists(output_dir):

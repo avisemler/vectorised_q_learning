@@ -17,6 +17,7 @@ def make(*args):
     #intervention
     parser.add_argument("--intervention_start", default=None, type=int, help="")
     parser.add_argument("--intervention_end", default=None, type=int, help="")
+    parser.add_argument("--intervention_type", default="walk", type=str, help="")
     parser.add_argument("--social_graph", default="none", type=str, help="")
     parser.add_argument("--graph_connectivity", default="low", type=str, help="")
 

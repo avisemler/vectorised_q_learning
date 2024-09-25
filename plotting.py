@@ -2,6 +2,7 @@ import math
 import os
 import json
 from types import SimpleNamespace
+from statistics import stdev
 
 import matplotlib.pyplot as plt 
 import numpy as np
@@ -118,7 +119,7 @@ def plot(opts, results=None, show=False, title="", name_suffix=""):
         )
         axis[x_coord, y_coord].grid(axis='y')
         axis[x_coord, y_coord].set_title("Full population " + title)
-        axis[x_coord, y_coord].set_ylim(0, 2000)
+        axis[x_coord, y_coord].set_ylim(0, 3000)
         axis[x_coord, y_coord].set_xlabel("Time")
         axis[x_coord, y_coord].set_ylabel("Number of agents")
 
@@ -137,36 +138,73 @@ def plot(opts, results=None, show=False, title="", name_suffix=""):
     by_label = dict(zip(labels, handles))
     fig.legend(by_label.values(), by_label.keys(), loc="upper right")
     image_name = opts.run_name + name_suffix + ".png"
-    print("Saving as:", image_name)
-    plt.savefig("viz_" + image_name, dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join("images", image_name), dpi=300, bbox_inches="tight")
     plt.close()
 
-    #also perform an authority utility calculation, and compute its mean
-    authority_utilities = []
-    for res in results:
-        authority_utilities.append(calculate_authority_utility(opts, res.sum(axis=-2), opts.timesteps-1))
 
-    #mean_authority_utilies = np.mean(np.stack(authority_utilities)).tolist()
-
-    return sum(authority_utilities)/len(authority_utilities)
 if __name__ == "__main__":
     import glob
 
     authority_utilities = {}
+    run_names = []
 
-    directories_to_plot = glob.glob("/dcs/large/u2107995/res/*/")
+    directories_to_plot = [d for d in glob.glob("/dcs/large/u2107995/res/*/") if "temp" not in d]
     for d in directories_to_plot:
         #load options
         with open(os.path.join(d, "opts.json"), "r") as f:
             opts = json.load(f, object_hook=lambda d: SimpleNamespace(**d))
-
+            print(opts.run_name)
+            run_names.append(opts.run_name)
             #load results
             results = []
             for i, np_file in enumerate(glob.glob(os.path.join(d, "*.npy"))):
                 arr = np.load(np_file, allow_pickle=True).astype(np.float32)
                 results.append(arr)
             
-            authority_utilities[opts.run_name] = plot(opts, results)
+            plot(opts, results)
 
-    with open("authority_utilities.txt", "w") as f:
-        f.write(str(authority_utilities))
+            #also perform an authority utility calculation, and compute its mean
+            run_utilities = []
+            for res in results:
+                run_utilities.append(calculate_authority_utility(opts, res.sum(axis=-2), opts.timesteps-1))
+            authority_utilities[opts.run_name] = sum(run_utilities) / len(run_utilities)
+
+            if "late" in opts.run_name:
+                #if there was an intervention, calculate its mean effect size
+                effect_sizes = []
+                utility_changes = []
+                intervention_index = action_names.index(opts.intervention_type)
+                for res in results:
+                    baseline = calculate_authority_utility(opts, res.sum(axis=-2), opts.intervention_start-2)
+                    size = authority_utilities[opts.run_name] - baseline
+                    utility_changes.append(size)
+
+                    pre_intervention_level = np.mean(res.sum(axis=-2)[opts.intervention_start-10:opts.intervention_start, intervention_index])
+                    post_intervention_level = np.mean(res.sum(axis=-2)[opts.timesteps-10:opts.timesteps, intervention_index])
+                    print(post_intervention_level - pre_intervention_level)
+                    effect_sizes.append(post_intervention_level - pre_intervention_level)
+                authority_utilities[opts.run_name + "_effect_size"] = sum(effect_sizes) / len(effect_sizes)
+                authority_utilities[opts.run_name + "_effect_size_std"] = 0 if len(effect_sizes)== 1 else stdev(effect_sizes)
+                authority_utilities[opts.run_name + "util_change"] = sum(utility_changes) / len(utility_changes)
+
+    with open("authority_utilities.json", "w") as f:
+        json.dump(dict(sorted(authority_utilities.items())), f)
+
+    for i_type in ["walk", "car"]:
+        #plot intervention effect sizes over graph types
+        generators = {"er": "Erdős–Rényi", "ba": "Barabasi-Albert", "ws": "Watts-Strogatz"}
+        for g in generators:
+            plt.errorbar(["Empty network", "Low connectivity", "High connectivity", "Ultra-high connectivity"],
+                [authority_utilities[f"none_late{i_type}_effect_size"], authority_utilities[f"{g}_low_late{i_type}_effect_size"], authority_utilities[f"{g}_high_late{i_type}_effect_size"], authority_utilities[f"{g}_ultra_late{i_type}_effect_size"]],
+                label=generators[g],
+                yerr=[authority_utilities[f"none_late{i_type}_effect_size_std"], authority_utilities[f"{g}_low_late{i_type}_effect_size_std"], authority_utilities[f"{g}_high_late{i_type}_effect_size_std"], authority_utilities[f"{g}_ultra_late{i_type}_effect_size_std"]],
+                ecolor="black",
+                capsize=3,
+            )
+        
+        plt.xlabel("Social network connecivity")
+        plt.ylabel("Effect size")
+        plt.legend()
+
+        plt.savefig(f"effect_sizes_{i_type}.png")
+        plt.close()

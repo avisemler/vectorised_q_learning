@@ -3,7 +3,9 @@
 *.out
 *.err
 *.txt
+*.json
 
 __pycache__/
 results/
 plots/
+images/

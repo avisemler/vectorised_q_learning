@@ -3,6 +3,16 @@ using different generators."""
 
 import networkx as nx
 
+print("Ultra high")
+g = nx.erdos_renyi_graph(3000, 0.01000333444)
+print(len(g.edges))
+
+g = nx.watts_strogatz_graph(3000, 30, 0.1)
+print(len(g.edges))
+
+g = nx.barabasi_albert_graph(3000, 15)
+print(len(g.edges))
+
 
 print("High")
 g = nx.erdos_renyi_graph(3000, 0.0053351117)
