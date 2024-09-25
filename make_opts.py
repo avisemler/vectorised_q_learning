@@ -23,5 +23,6 @@ def make(*args):
 
     #files
     parser.add_argument("--output_dir", default="/dcs/large/u2107995/res", type=str, help="")
+    parser.add_argument("--save", default=0, type=int, help="")
 
     return parser.parse_args(args)

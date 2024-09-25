@@ -135,12 +135,34 @@ def run_simulation(opts):
             costs = original_costs
             sensitivities = original_sensitivities
 
+    #analyse the average number of agents that share an action with their neighbour
+    #in the final timestep
+    # final_actions = result[-1].argmax(dim=-1).unsqueeze(dim=0).repeat(opts.n_agents, 1) + 1
+    # social_matrix_unweighted = social_matrix > 0
+    # social_matrix_unweighted = social_matrix_unweighted.int()
+    # actions_of_neighbours = social_matrix_unweighted * final_actions
+    # same_actions = actions_of_neighbours == final_actions.int().T
+    # number_same = torch.sum(same_actions, dim=-1)
+    # fraction_same = number_same.float() / social_matrix_unweighted.sum(dim=-1).float()
+    # print(fraction_same.float().median())
+
     return result
 
 if __name__ == "__main__":
     import sys, os
     
     opts = make_opts.make(*sys.argv[1:])
+
+    #validate opts
+    if opts.social_graph not in ["er", "ba", "ws", "none"]:
+        raise ValueError(f"Unknown graph type {opts.social_graph}")
+    if opts.graph_connectivity not in ["low", "high", "ultra"]:
+        raise ValueError(f"Unknown graph type {opts.graph_connectivity}")
+    if opts.intervention_start is not None:
+        assert opts.intervention_start < opts.timesteps
+    if opts.intervention_end is not None:
+        assert opts.intervention_end > opts.intervention_start
+        assert opts.intervention_end <= opts.timesteps
 
     #save results in folder
     if opts.intervention_start is None:
@@ -169,11 +191,11 @@ if __name__ == "__main__":
         print(f"{i}")
         results.append(run_simulation(opts).cpu().numpy())
 
-    #plotting.plot(opts, results)
-    for i, arr in enumerate(results):
-        np.save(os.path.join(output_dir, f"{i}.npy"), arr.astype(bool))
+    if opts.save:
+        for i, arr in enumerate(results):
+            np.save(os.path.join(output_dir, f"{i}.npy"), arr.astype(bool))
 
-    with open(os.path.join(output_dir, "opts.json"), "w") as f:
-        json.dump(opts.__dict__, f)
+        with open(os.path.join(output_dir, "opts.json"), "w") as f:
+            json.dump(opts.__dict__, f)
 
     print("\nTook time:", time.time() - start_time)
