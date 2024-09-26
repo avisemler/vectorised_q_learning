@@ -148,7 +148,7 @@ if __name__ == "__main__":
     authority_utilities = {}
     run_names = []
 
-    directories_to_plot = [d for d in glob.glob("/dcs/large/u2107995/res/*/") if "rand" in d]
+    directories_to_plot = [d for d in glob.glob("/dcs/large/u2107995/res/*/") if d.endswith("_")]
     for d in directories_to_plot:
         #load options
         with open(os.path.join(d, "opts.json"), "r") as f:

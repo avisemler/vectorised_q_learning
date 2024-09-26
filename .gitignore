@@ -2,7 +2,6 @@
 *.sbatch 
 *.out
 *.err
-*.txt
 *.json
 
 __pycache__/
