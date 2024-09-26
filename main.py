@@ -28,7 +28,10 @@ def reward_function(opts, actions, value_functions, sensitivities, costs):
     return sensitivity_adjusted - cost_adjustment
 
 def run_simulation(opts):
-    q_values = torch.zeros(opts.n_agents, opts.n_actions).to(device)
+    if not opts.random_init:
+        q_values = torch.zeros(opts.n_agents, opts.n_actions).to(device)
+    else:
+        q_values = torch.rand(opts.n_agents, opts.n_actions).to(device)
     sensitivities = torch.ones_like(q_values)
     sensitivities[:1000] = torch.tensor([1.3,1,1])
     sensitivities[1000:2000] = torch.tensor([1,1.35,1.4])
@@ -144,7 +147,7 @@ def run_simulation(opts):
     # same_actions = actions_of_neighbours == final_actions.int().T
     # number_same = torch.sum(same_actions, dim=-1)
     # fraction_same = number_same.float() / social_matrix_unweighted.sum(dim=-1).float()
-    # print(fraction_same.float().median())
+    # print(torch.sum(fraction_same.float() > 0.9))
 
     return result
 
@@ -164,7 +167,7 @@ if __name__ == "__main__":
         assert opts.intervention_end > opts.intervention_start
         assert opts.intervention_end <= opts.timesteps
 
-    #save results in folder
+    #save results in folder, with a name based on the options used
     if opts.intervention_start is None:
         intervention_type = ""
     elif opts.intervention_start is not None and opts.intervention_end is None:
@@ -177,11 +180,8 @@ if __name__ == "__main__":
     else:
         social_graph_type = f"{opts.social_graph}_{opts.graph_connectivity}"
 
-    opts.run_name = f"{social_graph_type}{intervention_type}"
-
+    opts.run_name = f"{social_graph_type}{intervention_type}_{'random' if opts.random_init else ''}"
     output_dir = os.path.join(opts.output_dir, f"output_{opts.run_name}")
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
     
     print("\n\n~Starting~:", opts.run_name)
     start_time = time.time()
@@ -192,9 +192,15 @@ if __name__ == "__main__":
         results.append(run_simulation(opts).cpu().numpy())
 
     if opts.save:
+        #create output directory
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        #save results data as numpy arrays
         for i, arr in enumerate(results):
             np.save(os.path.join(output_dir, f"{i}.npy"), arr.astype(bool))
 
+        #save options used
         with open(os.path.join(output_dir, "opts.json"), "w") as f:
             json.dump(opts.__dict__, f)
 
