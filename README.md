@@ -29,7 +29,9 @@ python main.py --n_iterations=1 --output_dir=[insert desired output directory he
 
 This will run a simulation and save the result to the directory whose name you insert.
 
-To plot the 
+To plot the results, use `plotting.py`. An example output is below:
+
+![A plot](plot.png)
 
 A full list of command line arguments is given below:
 
